@@ -6,6 +6,11 @@ namespace App
 {
     public static class AzureFactory
     {
+        public static IAzure CreateAzure(Settings settings)
+        {
+            return CreateAzure(settings.ClientId, settings.ClientSecret, settings.TenantId);
+        }
+
         public static IAzure CreateAzure(string clientId, string clientSecret, string tenantId)
         {
             var credentials = SdkContext

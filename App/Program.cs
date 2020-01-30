@@ -1,4 +1,8 @@
 ﻿using System;
+using System.IO;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace App
 {
@@ -6,12 +10,28 @@ namespace App
     {
         public static void Main()
         {
-            const string clientId = "!PUT YOUR CLIENT ID HERE!";
-            const string clientSecret = "!PUT YOUR CLIENT SECRET HERE!";
-            const string tenantId = "!PUT YOUR TENANT ID HERE!";
+            var environment = Environment.GetEnvironmentVariable("ENVIRONMENT");
 
-            var azure = AzureFactory.CreateAzure(clientId, clientSecret, tenantId);
-            var manager = new AzureManager(azure);
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: true)
+                .AddEnvironmentVariables()
+                .Build();
+
+            var services = new ServiceCollection();
+            services.Configure<Settings>(configuration.GetSection(nameof(Settings)));
+            services.AddSingleton<IAzureManager>(provider =>
+            {
+                var settings = provider.GetService<IOptions<Settings>>().Value;
+                var azure = AzureFactory.CreateAzure(settings);
+                return new AzureManager(azure);
+            });
+            
+            var serviceProvider = services.BuildServiceProvider();
+
+            var manager = serviceProvider.GetService<IAzureManager>();
+
             var parameters = AzureSqlDbParametersFactory.CreateDefaultAzureSqlDbParameters();
 
             var sqlServer = manager.CreateAzureSqlServer(parameters);
